@@ -40,6 +40,9 @@ Nobody else can read it: not us, not your cloud provider.
 
 ## Screenshots
 
+<img src="docs/images/desktop-windows.png" alt="The Scytale desktop app on Windows: item list, a GitHub login with a live one-time code, and the custom title bar" width="100%">
+<p align="center"><sub>The desktop app on Windows, with its own title bar and a live one-time code</sub></p>
+
 <table>
   <tr>
     <td width="33%"><img src="docs/images/popup-dark.png" alt="Extension popup, dark theme, showing logins for the current site"></td>
