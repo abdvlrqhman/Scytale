@@ -15,6 +15,7 @@ mod vault;
 pub mod export;
 pub mod generator;
 pub mod import;
+pub mod session;
 pub mod snapshot;
 pub mod totp;
 pub mod url_match;

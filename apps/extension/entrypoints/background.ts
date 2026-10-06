@@ -21,8 +21,11 @@ export default defineBackground({
   main() {
     const local = new BrowserStore('local');
     const session = new BrowserStore('session');
-    const remoteFor = (c: RemoteConfig) =>
-      c.kind === 'webdav' ? new WebDavStore(c.url, c.username, c.password) : new DropboxStore(DROPBOX_CLIENT_ID, c.refreshToken);
+    const remoteFor = (c: RemoteConfig) => {
+      if (c.kind === 'webdav') return new WebDavStore(c.url, c.username, c.password);
+      if (c.kind === 'dropbox') return new DropboxStore(DROPBOX_CLIENT_ID, c.refreshToken);
+      throw new UserError('Folder sync is only available in the desktop app.');
+    };
     const ready: Promise<VaultService> = init({ module_or_path: wasmUrl }).then(
       () =>
         new VaultService(new WasmEngine(wasm), local, session, deviceName(), {

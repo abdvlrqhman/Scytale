@@ -27,7 +27,9 @@ export interface RemoteStore {
 
 export type RemoteConfig =
   | { kind: 'webdav'; url: string; username: string; password: string }
-  | { kind: 'dropbox'; refreshToken: string };
+  | { kind: 'dropbox'; refreshToken: string }
+  /** Desktop only: a folder another app keeps in sync. */
+  | { kind: 'folder'; path: string };
 
 /** `fetch`, injectable: the desktop app routes requests through Rust to avoid CORS. */
 export type Fetch = typeof fetch;
