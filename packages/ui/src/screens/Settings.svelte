@@ -28,7 +28,8 @@
     theme: Theme;
     autoLockMinutes: number;
     clipboardSeconds: number;
-    lockOnClose: boolean;
+    /** Leave undefined where it is not a choice (the extension always locks when the browser closes). */
+    lockOnClose?: boolean;
     /** Desktop app only; leave undefined in the extension to hide the option. */
     startAtLogin?: boolean;
     /** "Dropbox", or undefined when sync is off. */
@@ -101,7 +102,9 @@
         <option value={0}>Never</option>
       </select>
     </div>
-    <Switch id="s-close" label="Lock when the browser closes" bind:checked={lockOnClose} />
+    {#if lockOnClose !== undefined}
+      <Switch id="s-close" label="Lock when the window is hidden to the tray" bind:checked={lockOnClose} />
+    {/if}
     <div class="buttons">
       <Button onclick={onchangepassword}>Change master password</Button>
       <Button onclick={onshowkit}>Show Emergency Kit</Button>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="30" fill="#1C1713"/>
+  <g transform="rotate(-38 64 64)">
+    <clipPath id="rod"><rect x="14" y="46" width="100" height="36" rx="18"/></clipPath>
+    <rect x="14" y="46" width="100" height="36" rx="18" fill="#3A2E22"/>
+    <g clip-path="url(#rod)" fill="#C9974F">
+      <polygon points="18,82 34,46 48,46 32,82"/>
+      <polygon points="42,82 58,46 72,46 56,82"/>
+      <polygon points="66,82 82,46 96,46 80,82"/>
+      <polygon points="90,82 106,46 120,46 104,82"/>
+    </g>
+  </g>
+</svg>

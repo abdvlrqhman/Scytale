@@ -1,0 +1,34 @@
+{
+  "name": "@scytale/extension",
+  "version": "1.0.0",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "description": "Scytale browser extension for Chrome, Brave, Edge, Opera, Vivaldi and Firefox.",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox --mv3",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox --mv3",
+    "check": "wxt prepare && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "e2e": "wxt build --mode e2e && playwright test"
+  },
+  "dependencies": {
+    "@scytale/client": "workspace:*",
+    "@scytale/core-wasm": "workspace:*",
+    "@scytale/ui": "workspace:*",
+    "@zxcvbn-ts/core": "^4.2.0",
+    "@zxcvbn-ts/language-common": "^4.1.3",
+    "@zxcvbn-ts/language-en": "^4.1.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@wxt-dev/module-svelte": "^2.0.5",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.2",
+    "wxt": "^0.21.4"
+  }
+}

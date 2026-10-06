@@ -27,7 +27,7 @@ Read more: [Architecture](docs/ARCHITECTURE.md) · [Cryptography](docs/CRYPTO.md
 | Platform | Status |
 |---|---|
 | Chrome, Edge, Brave, Opera, Vivaldi | planned (v1) |
-| Firefox 128+ | planned (v1) |
+| Firefox 140+ | planned (v1) |
 | Windows, macOS, Linux desktop (Tauri) | planned (v1) |
 | Android, iOS, Safari | later (v2) |
 

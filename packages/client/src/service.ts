@@ -64,6 +64,11 @@ export class VaultService {
     return (await this.ensureOpen()) ? 'unlocked' : 'locked';
   }
 
+  /** False on a device that has never opened the vault: the Secret Key must be typed in. */
+  async hasSecretKey(): Promise<boolean> {
+    return !!(await this.local.get(K.secretKey));
+  }
+
   /** Reopens the vault after a service-worker restart, if the session is still alive. */
   async ensureOpen(): Promise<boolean> {
     if (await this.engine.isOpen()) return true;
