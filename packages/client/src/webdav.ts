@@ -88,24 +88,29 @@ export class WebDavStore implements RemoteStore {
  */
 export function parseMultistatus(xml: string): { href: string; etag: string; collection: boolean }[] {
   const out: { href: string; etag: string; collection: boolean }[] = [];
-  const tags = /<(\/?)(?:[\w-]+:)?([\w-]+)([^<>]*)>/g;
   let current: { href: string; etag: string; collection: boolean } | null = null;
   let capture: 'href' | 'getetag' | null = null;
   let textStart = 0;
   let inResourceType = false;
-  for (let m = tags.exec(xml); m; m = tags.exec(xml)) {
-    const [, closing, rawName = '', rest = ''] = m;
-    const name = rawName.toLowerCase();
+  // indexOf scanning: linear in the input by construction, whatever the server sends.
+  for (let lt = xml.indexOf('<'); lt !== -1; ) {
+    const gt = xml.indexOf('>', lt + 1);
+    if (gt === -1) break;
+    const raw = xml.slice(lt + 1, gt);
+    const closing = raw.startsWith('/');
+    const body = closing ? raw.slice(1) : raw;
+    const selfClosing = body.endsWith('/');
+    const qname = body.split(/[\s/]/, 1)[0] ?? '';
+    const name = qname.slice(qname.indexOf(':') + 1).toLowerCase();
     if (!closing) {
-      const selfClosing = rest.endsWith('/');
       if (name === 'response') current = { href: '', etag: '', collection: false };
       else if (current && (name === 'href' || name === 'getetag') && !selfClosing) {
         capture = name;
-        textStart = tags.lastIndex;
+        textStart = gt + 1;
       } else if (current && name === 'resourcetype') inResourceType = !selfClosing;
       else if (current && name === 'collection' && inResourceType) current.collection = true;
     } else if (current && capture === name) {
-      const text = xmlDecode(xml.slice(textStart, m.index).trim());
+      const text = xmlDecode(xml.slice(textStart, lt).trim());
       if (name === 'href') current.href = text;
       else current.etag = text;
       capture = null;
@@ -114,6 +119,7 @@ export function parseMultistatus(xml: string): { href: string; etag: string; col
       out.push(current);
       current = null;
     }
+    lt = xml.indexOf('<', gt + 1);
   }
   return out;
 }

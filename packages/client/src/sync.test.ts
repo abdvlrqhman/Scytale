@@ -141,6 +141,7 @@ describe('parseMultistatus', () => {
     // Hostile input stays linear: a long run of unclosed tags parses instantly.
     const t0 = performance.now();
     parseMultistatus('<d:response><d:href>' + '<x:'.repeat(50_000));
+    parseMultistatus('<-' + '--'.repeat(100_000));
     expect(performance.now() - t0).toBeLessThan(500);
     expect(parseMultistatus('<D:multistatus xmlns:D="DAV:"><D:response><D:href>/x</D:href><D:getetag>W/"1"</D:getetag></D:response></D:multistatus>')).toEqual([
       { href: '/x', etag: 'W/"1"', collection: false },
