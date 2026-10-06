@@ -13,9 +13,8 @@
     Unlock,
     Wordmark,
   } from '@scytale/ui';
-  import type { GeneratorOptions, ItemDraft, ItemSummary, ItemView, SyncInfo } from '@scytale/ui/types';
+  import type { DeviceView, GeneratorOptions, ItemDraft, ItemSummary, ItemView, SyncInfo } from '@scytale/ui/types';
   import { onDestroy, onMount } from 'svelte';
-  import { deviceName } from '@/src/device';
   import { send } from '@/src/messages';
   import { applyTheme, copyText } from '@/src/ui-helpers';
 
@@ -38,7 +37,16 @@
   let matches: ItemSummary[] = $state([]);
   let items: ItemSummary[] = $state([]);
   let query = $state('');
-  const sync: SyncInfo = { status: 'offline', text: 'Sync is off. Your vault is saved on this device.' };
+  let sync: SyncInfo = $state({ status: 'offline', text: 'Sync is off. Your vault is saved on this device.' });
+  let storage: string | undefined = $state();
+  let devices: DeviceView[] = $state([]);
+
+  async function loadSync() {
+    const s = await send({ type: 'syncInfo' });
+    sync = s.info;
+    storage = s.storage;
+    devices = s.devices;
+  }
 
   // Item
   let item: ItemView | undefined = $state();
@@ -94,6 +102,7 @@
     matches = tab.matches;
     items = all;
     view = { name: 'list' };
+    loadSync().catch(fail);
   }
 
   async function onUnlock(password: string, secretKey?: string) {
@@ -319,11 +328,17 @@
         bind:autoLockMinutes={settings.autoLockMinutes}
         bind:clipboardSeconds={settings.clipboardSeconds}
         {sync}
-        devices={[{ id: 'this', name: deviceName(), lastSeen: 'Active now', current: true }]}
+        storageName={storage}
+        {devices}
         version={browser.runtime.getManifest().version}
-        onsyncnow={() => {}}
+        onsyncnow={async () => {
+          const s = await send({ type: 'syncNow' });
+          sync = s.info;
+          devices = s.devices;
+          if (s.info.status !== 'error') await showList().then(() => (view = { name: 'settings' }));
+        }}
         onchangestorage={() => openVault('sync')}
-        onremovedevice={() => {}}
+        onremovedevice={() => say('Removing devices arrives in a later version.')}
         onimport={() => openVault('import')}
         onexportencrypted={() => openVault('export')}
         onexportcsv={() => openVault('export')}

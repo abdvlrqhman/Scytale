@@ -1,19 +1,48 @@
-import { UserError, VaultService, WasmEngine, fromB64, toB64 } from '@scytale/client';
+import {
+  DropboxStore,
+  type RemoteConfig,
+  UserError,
+  VaultService,
+  WasmEngine,
+  WebDavStore,
+  fromB64,
+  toB64,
+} from '@scytale/client';
 import init, * as wasm from '@scytale/core-wasm';
 import wasmUrl from '@scytale/core-wasm/wasm?url';
 import { BrowserStore } from '@/src/browser-store';
 import { deviceName } from '@/src/device';
 import { type FillResult, fillPage } from '@/src/fill';
-import type { Reply, Request, StatusReply, TabMatches } from '@/src/messages';
+import type { Reply, Request, StatusReply, SyncState, TabMatches } from '@/src/messages';
+import { DROPBOX_CLIENT_ID } from '@/src/providers';
 
 export default defineBackground({
   type: 'module',
   main() {
     const local = new BrowserStore('local');
     const session = new BrowserStore('session');
+    const remoteFor = (c: RemoteConfig) =>
+      c.kind === 'webdav' ? new WebDavStore(c.url, c.username, c.password) : new DropboxStore(DROPBOX_CLIENT_ID, c.refreshToken);
     const ready: Promise<VaultService> = init({ module_or_path: wasmUrl }).then(
-      () => new VaultService(new WasmEngine(wasm), local, session, deviceName()),
+      () =>
+        new VaultService(new WasmEngine(wasm), local, session, deviceName(), {
+          remoteFor,
+          onChange: () => scheduleSync(2000),
+        }),
     );
+
+    // --- Sync: 2 s after a change, every 5 minutes, and after unlocking -------------------------
+    let syncTimer: ReturnType<typeof setTimeout> | undefined;
+    function scheduleSync(ms: number) {
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => ready.then((s) => s.sync()).catch(() => {}), ms);
+    }
+    browser.alarms.create('sync', { periodInMinutes: 5 });
+
+    async function syncState(svc: VaultService): Promise<SyncState> {
+      const { storage, ...info } = await svc.syncInfo();
+      return { info, storage, devices: await svc.devices() };
+    }
 
     // --- Messages from our own pages only -------------------------------------------------
     browser.runtime.onMessage.addListener((msg: unknown, sender) => {
@@ -38,7 +67,9 @@ export default defineBackground({
         case 'create':
           return { secretKey: await svc.create(req.password) };
         case 'unlock':
-          return svc.unlock(req.password, req.secretKey);
+          await svc.unlock(req.password, req.secretKey);
+          scheduleSync(0);
+          return undefined;
         case 'lock':
           return svc.lock();
         case 'list':
@@ -87,6 +118,18 @@ export default defineBackground({
           return svc.changePassword(req.current, req.next);
         case 'copied':
           return scheduleClipboardClear((await svc.settings()).clipboardSeconds);
+        case 'syncInfo':
+          return syncState(svc);
+        case 'syncNow':
+          await svc.sync();
+          return syncState(svc);
+        case 'connect':
+          await svc.connect(req.config);
+          return syncState(svc);
+        case 'join':
+          return svc.join(req.config);
+        case 'disconnect':
+          return svc.disconnect();
         case 'openVaultPage':
           await browser.tabs.create({ url: browser.runtime.getURL(`/vault.html#${req.hash}`) });
           return undefined;
@@ -139,6 +182,7 @@ export default defineBackground({
     // --- Auto-lock ---------------------------------------------------------------------------
     browser.alarms.create('autolock', { periodInMinutes: 1 });
     browser.alarms.onAlarm.addListener(async (alarm) => {
+      if (alarm.name === 'sync') return void (await ready).sync();
       if (alarm.name !== 'autolock') return;
       const svc = await ready;
       const last = (await session.get<number>('lastActive')) ?? 0;

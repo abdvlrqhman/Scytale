@@ -16,6 +16,10 @@ export default defineConfig({
       'idle',
       ...(browser === 'firefox' ? ['clipboardWrite'] : ['offscreen']),
     ],
+    // Asked for only when the user connects sync: identity for the Dropbox sign-in window, and
+    // access to the one WebDAV server they type in.
+    optional_permissions: ['identity'],
+    optional_host_permissions: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
     // End-to-end tests drive a local fixture page without a user gesture; release builds never get this.
     ...(mode === 'e2e' ? { host_permissions: ['http://localhost/*', 'http://127.0.0.1/*'] } : {}),
     commands: {

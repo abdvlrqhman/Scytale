@@ -1,7 +1,7 @@
 // The popup and vault page talk to the background worker with these messages. Only extension pages
 // may send them (the background checks the sender).
-import type { Settings, Status } from '@scytale/client';
-import type { GeneratorOptions, ItemDraft, ItemKind, ItemSummary, ItemView } from '@scytale/ui/types';
+import type { RemoteConfig, Settings, Status } from '@scytale/client';
+import type { DeviceView, GeneratorOptions, ItemDraft, ItemKind, ItemSummary, ItemView, SyncInfo } from '@scytale/ui/types';
 
 export type Request =
   | { type: 'status' }
@@ -29,6 +29,11 @@ export type Request =
   | { type: 'secretKey'; password: string }
   | { type: 'changePassword'; current: string; next: string }
   | { type: 'copied' }
+  | { type: 'syncInfo' }
+  | { type: 'syncNow' }
+  | { type: 'connect'; config: RemoteConfig }
+  | { type: 'join'; config: RemoteConfig }
+  | { type: 'disconnect' }
   | { type: 'openVaultPage'; hash: string };
 
 export interface StatusReply {
@@ -70,7 +75,19 @@ export interface Replies {
   secretKey: string;
   changePassword: void;
   copied: void;
+  syncInfo: SyncState;
+  syncNow: SyncState;
+  connect: SyncState;
+  join: void;
+  disconnect: void;
   openVaultPage: void;
+}
+
+export interface SyncState {
+  info: SyncInfo;
+  /** Provider name when connected, e.g. "Dropbox" or "cloud.example.com". */
+  storage?: string;
+  devices: DeviceView[];
 }
 
 export type Reply<T> = { ok: true; data: T } | { ok: false; error: string };

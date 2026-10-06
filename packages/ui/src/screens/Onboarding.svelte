@@ -10,6 +10,7 @@
   let {
     secretKey,
     allowFolder = false,
+    available,
     rate,
     suggest,
     oncreate,
@@ -24,6 +25,8 @@
     secretKey?: string;
     /** Desktop only: sync through a folder another app already syncs. */
     allowFolder?: boolean;
+    /** Providers this build can connect; others are not offered. */
+    available?: StorageProvider[];
     rate: (password: string) => Strength;
     suggest: () => string;
     oncreate: (password: string) => void;
@@ -49,7 +52,8 @@
   const canCreate = $derived(!!strength && strength.score >= 2 && confirm === password);
   const stepNo = $derived(order.indexOf(step) + 1);
 
-  const providers: { id: StorageProvider; name: string; detail: string }[] = $derived([
+  type ProviderOption = { id: StorageProvider; name: string; detail: string };
+  const providers: ProviderOption[] = $derived(([
     { id: 'dropbox', name: 'Dropbox', detail: 'Sign in once; works everywhere.' },
     { id: 'gdrive', name: 'Google Drive', detail: 'Stored in a private app folder.' },
     { id: 'onedrive', name: 'OneDrive', detail: 'Stored in Apps › Scytale.' },
@@ -58,7 +62,10 @@
       ? [{ id: 'folder' as const, name: 'A folder', detail: 'Any folder Syncthing or iCloud Drive keeps in sync.' }]
       : []),
     { id: 'none', name: 'Only this device for now', detail: 'You can turn on sync later in Settings.' },
-  ]);
+  ] as ProviderOption[]).filter((p) => p.id === 'none' || !available || available.includes(p.id)));
+  $effect(() => {
+    if (!providers.some((p) => p.id === provider)) provider = providers[0]?.id ?? 'none';
+  });
 
   function createVault(e: SubmitEvent) {
     e.preventDefault();

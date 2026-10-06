@@ -4,6 +4,7 @@ import { type BrowserContext, type Worker, chromium, expect, test } from '@playw
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
+import { startWebDav } from './webdav-server';
 
 const extensionPath = fileURLToPath(new URL('../.output/chrome-mv3-e2e', import.meta.url));
 const MASTER = 'correct horse battery staple';
@@ -114,4 +115,24 @@ test('refuses to fill a look-alike host', async () => {
   expect(await fillActive()).toMatch(/not saved for this website/);
   await expect(page.locator('#pass')).toHaveValue('');
   await page.close();
+});
+
+test('connects WebDAV sync and uploads only encrypted files', async () => {
+  const dav = await startWebDav('sam', 'app-password');
+  try {
+    const page = await context.newPage();
+    await page.goto(`chrome-extension://${extensionId}/vault.html#sync`);
+    await page.getByLabel('Server address').fill(dav.url);
+    await page.getByLabel('Username').fill('sam');
+    await page.getByLabel('App password').fill('app-password');
+    await page.getByRole('button', { name: 'Connect and upload' }).click();
+    await expect(page.getByText('Connected. Your vault is synced.')).toBeVisible();
+    const names = [...dav.files.keys()];
+    expect(names.some((n) => n.endsWith('/header.scyh'))).toBe(true);
+    expect(names.some((n) => /\/devices\/[0-9a-f]{32}\.scyv$/.test(n))).toBe(true);
+    for (const f of dav.files.values()) expect(f.bytes.includes(Buffer.from('hunter2-secret'))).toBe(false);
+    await page.close();
+  } finally {
+    dav.server.close();
+  }
 });

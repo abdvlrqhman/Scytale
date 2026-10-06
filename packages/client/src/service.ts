@@ -1,8 +1,10 @@
 // The use cases. Runs where the engine runs: the extension's background worker, or the desktop
 // webview. Every public method is safe to call right after a service-worker restart.
 import type { GeneratorOptions, ItemDraft, ItemKind, ItemSummary, ItemView, Theme } from '@scytale/ui/types';
+import type { DeviceView, SyncInfo } from '@scytale/ui/types';
 import type { CoreItem, VaultEngine } from './engine';
-import { draftFromItem, emptyDraft, itemFromDraft, itemView } from './mapping';
+import { draftFromItem, emptyDraft, itemFromDraft, itemView, relativeTime } from './mapping';
+import { AuthError, ConflictError, type RemoteConfig, type RemoteStore } from './remote';
 import { type KeyValueStore, fromB64, toB64 } from './store';
 
 export interface Settings {
@@ -30,7 +32,27 @@ const K = {
   guard: 'guard',
   settings: 'settings',
   devices: 'devices',
+  remote: 'remote',
+  remoteEtags: 'remoteEtags',
+  uploadedSeq: 'uploadedSeq',
+  lastSync: 'lastSync',
+  syncError: 'syncError',
+  /** The header as of the last sync, to notice a local password change. */
+  headerSeen: 'headerSeen',
 } as const;
+
+interface KnownDevice {
+  name: string;
+  seen: number;
+}
+
+export interface ServiceOptions {
+  now?: () => number;
+  /** Builds the storage adapter for a saved connection (the app supplies fetch, OAuth client ids…). */
+  remoteFor?: (config: RemoteConfig) => RemoteStore;
+  /** Called after every local change, so the app can schedule a sync. */
+  onChange?: () => void;
+}
 
 /** A message the UI can show as-is. */
 export class UserError extends Error {}
@@ -56,8 +78,12 @@ export class VaultService {
     /** Memory-only: the resume token. Empty after a browser restart, so the vault is locked. */
     private readonly session: KeyValueStore,
     private readonly deviceName: string,
-    private readonly now: () => number = Date.now,
+    private readonly options: ServiceOptions = {},
   ) {}
+
+  private now(): number {
+    return (this.options.now ?? Date.now)();
+  }
 
   async status(): Promise<Status> {
     if (!(await this.local.get(K.header))) return 'new';
@@ -161,8 +187,8 @@ export class VaultService {
     await this.#open();
     const v = await this.engine.view(id);
     const me = await this.#deviceId();
-    const devices = (await this.local.get<Record<string, string>>(K.devices)) ?? {};
-    const deviceName = v.edited_device === me ? 'on this device' : `on ${devices[v.edited_device] ?? 'another device'}`;
+    const devices = (await this.local.get<Record<string, KnownDevice>>(K.devices)) ?? {};
+    const deviceName = v.edited_device === me ? 'on this device' : `on ${devices[v.edited_device]?.name ?? 'another device'}`;
     const totp = v.secrets.includes('totp') ? await this.totp(id).catch(() => undefined) : undefined;
     return itemView(v, { now: this.now(), deviceName, revealed, totp });
   }
@@ -287,6 +313,152 @@ export class VaultService {
     return next;
   }
 
+  // --- Sync (docs/SYNC.md) -------------------------------------------------------------------
+
+  async remoteConfig(): Promise<RemoteConfig | undefined> {
+    return this.local.get<RemoteConfig>(K.remote);
+  }
+
+  /** Connects storage for this vault and uploads it. Fails before saving anything if login fails. */
+  async connect(config: RemoteConfig): Promise<SyncInfo> {
+    await this.#open();
+    await this.#build(config).list('scytale');
+    await this.local.set(K.remote, config);
+    await this.local.set(K.remoteEtags, {});
+    await this.local.set(K.uploadedSeq, 0);
+    return this.sync();
+  }
+
+  /** On a new device: fetches the vault header so it can be unlocked with the Secret Key. */
+  async join(config: RemoteConfig): Promise<void> {
+    if (await this.local.get(K.header)) throw new UserError('This device already has a vault.');
+    const remote = this.#build(config);
+    const ids = [...new Set((await remote.list('scytale')).map((e) => e.path.split('/')[1] ?? ''))].filter(Boolean);
+    for (const id of ids) {
+      const header = await remote.get(`scytale/${id}/header.scyh`);
+      if (!header) continue;
+      await this.local.set(K.header, toB64(header.bytes));
+      await this.local.set(K.vaultId, id);
+      await this.local.set(K.remote, config);
+      await this.local.set(K.remoteEtags, {});
+      return;
+    }
+    throw new UserError('There is no Scytale vault in this storage yet. Connect it on your other device first.');
+  }
+
+  async disconnect(): Promise<void> {
+    for (const k of [K.remote, K.remoteEtags, K.uploadedSeq, K.lastSync, K.syncError, K.headerSeen]) await this.local.remove(k);
+  }
+
+  async syncInfo(): Promise<SyncInfo & { storage?: string }> {
+    const config = await this.local.get<RemoteConfig>(K.remote);
+    if (!config) return { status: 'offline', text: 'Sync is off. Your vault is saved on this device.' };
+    const storage = this.#build(config).name;
+    const error = await this.local.get<string>(K.syncError);
+    if (error) return { status: 'error', text: error, storage };
+    const last = await this.local.get<number>(K.lastSync);
+    return last
+      ? { status: 'ok', text: `Synced with ${storage} ${relativeTime(last, this.now())}`, storage }
+      : { status: 'syncing', text: `Connecting to ${storage}…`, storage };
+  }
+
+  async devices(): Promise<DeviceView[]> {
+    const known = (await this.local.get<Record<string, KnownDevice>>(K.devices)) ?? {};
+    const me = await this.#deviceId();
+    const others = Object.entries(known)
+      .filter(([id]) => id !== me)
+      .sort((a, b) => b[1].seen - a[1].seen)
+      .map(([id, d]) => ({ id, name: d.name, lastSeen: `Last synced ${relativeTime(d.seen, this.now())}`, current: false }));
+    return [{ id: me, name: this.deviceName, lastSeen: 'Active now', current: true }, ...others];
+  }
+
+  /** One round: pull other devices' files, merge, push ours. Never throws; errors land in syncInfo. */
+  async sync(): Promise<SyncInfo> {
+    const config = await this.local.get<RemoteConfig>(K.remote);
+    if (config && (await this.ensureOpen())) {
+      try {
+        await this.#syncWith(this.#build(config));
+        await this.local.remove(K.syncError);
+        await this.local.set(K.lastSync, this.now());
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        await this.local.set(K.syncError, e instanceof AuthError ? msg : `Sync failed: ${msg}`);
+      }
+    }
+    return this.syncInfo();
+  }
+
+  async #syncWith(remote: RemoteStore) {
+    const vaultId = (await this.local.get<string>(K.vaultId))!;
+    const me = await this.#deviceId();
+    const dir = `scytale/${vaultId}`;
+    const headerPath = `${dir}/header.scyh`;
+    const ownPath = `${dir}/devices/${me}.scyv`;
+    const etags = (await this.local.get<Record<string, string>>(K.remoteEtags)) ?? {};
+    const devices = (await this.local.get<Record<string, KnownDevice>>(K.devices)) ?? {};
+    if (!(await this.local.get(K.snapshot))) await this.#persistLocal(); // first sync on a joined device
+    const entries = await remote.list(dir);
+
+    // Header: the newest version wins, so a password change reaches every device.
+    const localB64 = (await this.local.get<string>(K.header))!;
+    const localHeader = fromB64(localB64);
+    const headerEntry = entries.find((e) => e.path === headerPath);
+    const localChanged = localB64 !== (await this.local.get<string>(K.headerSeen));
+    if (!headerEntry) {
+      try {
+        etags[headerPath] = await remote.put(headerPath, localHeader, null);
+      } catch (e) {
+        if (!(e instanceof ConflictError)) throw e; // another device just created it; next round reconciles
+      }
+    } else if (headerEntry.etag !== etags[headerPath] || localChanged) {
+      const r = await remote.get(headerPath);
+      if (r) {
+        let etag = r.etag;
+        if (await this.engine.headerSupersedes(r.bytes, localHeader)) await this.local.set(K.header, toB64(r.bytes));
+        else if (await this.engine.headerSupersedes(localHeader, r.bytes)) etag = await remote.put(headerPath, localHeader, r.etag);
+        etags[headerPath] = etag;
+      }
+    }
+
+    await this.local.set(K.headerSeen, await this.local.get<string>(K.header));
+
+    // Every other device's snapshot that changed since we last saw it.
+    let changed = false;
+    const problems: string[] = [];
+    for (const e of entries) {
+      if (!e.path.startsWith(`${dir}/devices/`) || !e.path.endsWith('.scyv') || e.path === ownPath) continue;
+      if (etags[e.path] === e.etag) continue;
+      const r = await remote.get(e.path);
+      if (!r) continue;
+      try {
+        const m = await this.engine.mergeSnapshot(r.bytes);
+        changed ||= m.changed;
+        devices[m.device] = { name: m.device_name, seen: this.now() };
+        etags[e.path] = r.etag;
+      } catch (err) {
+        problems.push(err instanceof Error ? err.message : String(err));
+      }
+    }
+    await this.local.set(K.devices, devices);
+    if (changed) await this.#persistLocal();
+    else await this.local.set(K.guard, await this.engine.guardJson());
+
+    // Ours, when the server copy is missing or older.
+    const seq = (await this.local.get<number>(K.seq)) ?? 0;
+    const uploaded = (await this.local.get<number>(K.uploadedSeq)) ?? 0;
+    if (!entries.some((e) => e.path === ownPath) || seq > uploaded) {
+      etags[ownPath] = await remote.put(ownPath, fromB64((await this.local.get<string>(K.snapshot))!));
+      await this.local.set(K.uploadedSeq, seq);
+    }
+    await this.local.set(K.remoteEtags, etags);
+    if (problems.length) throw new Error(`a file from another device was skipped (${problems[0]})`);
+  }
+
+  #build(config: RemoteConfig): RemoteStore {
+    if (!this.options.remoteFor) throw new UserError('Sync is not available here.');
+    return this.options.remoteFor(config);
+  }
+
   // --- Internals ---------------------------------------------------------------------------
 
   async #open() {
@@ -316,8 +488,14 @@ export class VaultService {
     if (snapshot) await this.engine.mergeSnapshot(fromB64(snapshot));
   }
 
-  /** Seals this device's vault into local storage (and, from Phase 4, uploads it). */
+  /** Saves a change locally, then lets the app schedule a sync. */
   async #persist() {
+    await this.#persistLocal();
+    this.options.onChange?.();
+  }
+
+  /** Seals this device's vault into local storage. */
+  async #persistLocal() {
     await this.engine.compact(this.now(), TOMBSTONE_MAX_AGE_MS);
     const seq = ((await this.local.get<number>(K.seq)) ?? 0) + 1;
     const bytes = await this.engine.seal(seq, this.deviceName);

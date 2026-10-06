@@ -13,7 +13,9 @@
   } from '@scytale/ui';
   import type { StorageProvider } from '@scytale/ui/types';
   import { onMount } from 'svelte';
-  import { send } from '@/src/messages';
+  import SyncSetup from '@/src/SyncSetup.svelte';
+  import { type SyncState, send } from '@/src/messages';
+  import { DROPBOX_CLIENT_ID } from '@/src/providers';
   import { applyTheme, copyText, download, loadStrength, rate, today } from '@/src/ui-helpers';
 
   type Route = 'setup' | 'join' | 'import' | 'export' | 'kit' | 'password' | 'forgot' | 'sync';
@@ -24,6 +26,11 @@
   let needsSecretKey = $state(false);
   let message: { text: string; tone: 'ok' | 'error' } | null = $state(null);
   let ratingReady = $state(0); // bumps when zxcvbn loads, so meters re-rate
+
+  // Sync
+  let syncState: SyncState | undefined = $state();
+  let joined = $state(false);
+  const available: StorageProvider[] = DROPBOX_CLIENT_ID ? ['webdav', 'dropbox'] : ['webdav'];
 
   // Setup
   let secretKey: string | undefined = $state();
@@ -55,6 +62,7 @@
     status = s.status;
     needsSecretKey = s.needsSecretKey;
     applyTheme(s.settings.theme);
+    if (s.status === 'unlocked') syncState = await send({ type: 'syncInfo' });
   }
 
   function readRoute() {
@@ -112,7 +120,7 @@
   });
 
   function chooseStorage(p: StorageProvider) {
-    if (p !== 'none') say('Sync arrives in the next update. Your vault is saved on this device for now.');
+    if (p !== 'none') location.hash = 'sync';
   }
 
   // --- Unlock gate --------------------------------------------------------------------------
@@ -220,7 +228,7 @@
   }
 
   const needsUnlock = $derived(
-    status === 'locked' && ['import', 'export', 'kit', 'password'].includes(route),
+    status === 'locked' && ['import', 'export', 'kit', 'password', 'sync'].includes(route),
   );
 </script>
 
@@ -261,6 +269,7 @@
       <section class="card narrow">
         <Onboarding
           {secretKey}
+          {available}
           rate={rateNow}
           suggest={() => {
             const s = suggestion;
@@ -282,12 +291,19 @@
     {/if}
   {:else if route === 'join'}
     <section class="card narrow">
-      <h1>Add this device</h1>
-      <p class="body">
-        Your vault reaches new devices through sync, which arrives in the next update. Until then, export from your other
-        device (Settings, Export encrypted file) and import that file here after setting up.
-      </p>
-      <Button variant="primary" onclick={() => (location.hash = 'setup')}>Set up this device</Button>
+      {#if status === 'new'}
+        <h1>Add this device</h1>
+        <p class="body">Connect the storage your other device syncs to. Then sign in with your master password and Secret Key.</p>
+        <SyncSetup mode="join" ondone={() => refresh().then(() => (joined = true))} onerror={(m) => say(m, 'error')} />
+      {:else if status === 'locked'}
+        <h1>Sign in</h1>
+        <p class="body">Your vault was found. Type your master password and the Secret Key from your Emergency Kit.</p>
+        <Unlock {needsSecretKey} busy={unlocking} error={unlockError} onunlock={unlock} onforgot={() => (location.hash = 'forgot')} />
+      {:else}
+        <ScytaleStrip unwound height={30} />
+        <h1>{joined ? 'This device is ready' : 'Scytale is set up'}</h1>
+        <p class="body">Your vault is syncing now. Open Scytale from your browser's toolbar.</p>
+      {/if}
     </section>
   {:else if route === 'import'}
     <section class="card">
@@ -374,7 +390,30 @@
   {:else if route === 'sync'}
     <section class="card narrow">
       <h1>Sync</h1>
-      <p class="body">Sync through your own Dropbox, Google Drive, OneDrive or WebDAV arrives in the next update.</p>
+      {#if syncState?.storage}
+        <p class="body">Your encrypted vault syncs through <strong>{syncState.storage}</strong>. {syncState.info.text}.</p>
+        <div class="actions">
+          <Button variant="primary" onclick={async () => (syncState = await send({ type: 'syncNow' }))}>Sync now</Button>
+          <Button
+            variant="danger"
+            onclick={async () => {
+              await send({ type: 'disconnect' });
+              syncState = await send({ type: 'syncInfo' });
+              say('Sync is off. Your vault stays on this device; the copy in your storage is left as it was.');
+            }}>Turn off sync</Button
+          >
+        </div>
+      {:else}
+        <p class="body">Pick storage you already have. It only ever receives encrypted files.</p>
+        <SyncSetup
+          mode="connect"
+          ondone={async () => {
+            syncState = await send({ type: 'syncInfo' });
+            say('Connected. Your vault is synced.');
+          }}
+          onerror={(m) => say(m, 'error')}
+        />
+      {/if}
     </section>
   {/if}
 </div>

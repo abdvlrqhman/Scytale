@@ -15,7 +15,7 @@ let clock = Date.UTC(2026, 9, 6, 12);
 const now = () => (clock += 1000);
 
 function fresh(local = new MemoryStore(), session = new MemoryStore()) {
-  return { local, session, svc: new VaultService(new WasmEngine(wasm), local, session, 'Brave on Windows', now) };
+  return { local, session, svc: new VaultService(new WasmEngine(wasm), local, session, 'Brave on Windows', { now }) };
 }
 
 const github = () => ({
