@@ -4,7 +4,7 @@
   import SegmentedControl from '../src/lib/SegmentedControl.svelte';
   import TitleBar from '../src/lib/TitleBar.svelte';
   import Toast from '../src/lib/Toast.svelte';
-  import Generator, { type GeneratorOptions } from '../src/screens/Generator.svelte';
+  import Generator from '../src/screens/Generator.svelte';
   import ItemDetail from '../src/screens/ItemDetail.svelte';
   import ItemEdit from '../src/screens/ItemEdit.svelte';
   import Onboarding from '../src/screens/Onboarding.svelte';
@@ -12,7 +12,7 @@
   import Settings from '../src/screens/Settings.svelte';
   import Unlock from '../src/screens/Unlock.svelte';
   import VaultWindow, { type Section } from '../src/screens/VaultWindow.svelte';
-  import type { ItemView, Theme } from '../src/types';
+  import type { GeneratorOptions, ItemView, Theme } from '../src/types';
   import * as mock from './mock';
 
   type Screen = 'popup' | 'unlock' | 'onboarding' | 'desktop' | 'tokens';

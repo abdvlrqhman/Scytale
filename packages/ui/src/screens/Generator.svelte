@@ -1,20 +1,5 @@
-<script lang="ts" module>
-  export interface GeneratorOptions {
-    mode: 'password' | 'passphrase';
-    length: number;
-    lower: boolean;
-    upper: boolean;
-    digits: boolean;
-    symbols: boolean;
-    avoidAmbiguous: boolean;
-    words: number;
-    separator: string;
-    capitalize: boolean;
-    includeNumber: boolean;
-  }
-</script>
-
 <script lang="ts">
+  import type { GeneratorOptions } from '../types';
   import Button from '../lib/Button.svelte';
   import Icon from '../lib/Icon.svelte';
   import SegmentedControl from '../lib/SegmentedControl.svelte';

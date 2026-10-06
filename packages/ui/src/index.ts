@@ -18,7 +18,7 @@ export { default as TotpCode } from './lib/TotpCode.svelte';
 export { default as Wordmark } from './lib/Wordmark.svelte';
 
 export { default as EmergencyKit } from './screens/EmergencyKit.svelte';
-export { default as Generator, type GeneratorOptions } from './screens/Generator.svelte';
+export { default as Generator } from './screens/Generator.svelte';
 export { default as ItemDetail } from './screens/ItemDetail.svelte';
 export { default as ItemEdit } from './screens/ItemEdit.svelte';
 export { default as Onboarding } from './screens/Onboarding.svelte';
@@ -30,6 +30,7 @@ export { default as VaultWindow, type Section } from './screens/VaultWindow.svel
 export type {
   DeviceView,
   FieldView,
+  GeneratorOptions,
   ItemDraft,
   ItemKind,
   ItemSummary,

@@ -75,6 +75,20 @@ export interface DeviceView {
 
 export type StorageProvider = 'webdav' | 'dropbox' | 'onedrive' | 'gdrive' | 'folder' | 'none';
 
+export interface GeneratorOptions {
+  mode: 'password' | 'passphrase';
+  length: number;
+  lower: boolean;
+  upper: boolean;
+  digits: boolean;
+  symbols: boolean;
+  avoidAmbiguous: boolean;
+  words: number;
+  separator: string;
+  capitalize: boolean;
+  includeNumber: boolean;
+}
+
 export interface Strength {
   score: 0 | 1 | 2 | 3 | 4;
   label: string;

@@ -1,5 +1,4 @@
-import type { GeneratorOptions } from '../src/screens/Generator.svelte';
-import type { DeviceView, ItemDraft, ItemSummary, ItemView, Strength, SyncInfo } from '../src/types';
+import type { DeviceView, GeneratorOptions, ItemDraft, ItemSummary, ItemView, Strength, SyncInfo } from '../src/types';
 
 // Fictional sample data for the preview only. The real app gets all of this from the Rust core.
 export const items: ItemSummary[] = [
