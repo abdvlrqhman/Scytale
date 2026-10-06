@@ -1,0 +1,13 @@
+packages:
+  - packages/*
+  - apps/*
+
+# Supply chain: fail if a dependency's publish trust drops (e.g. a release suddenly lacks provenance).
+# pnpm 11 defaults already cover the rest: minimumReleaseAge = 1 day, exotic sub-deps blocked,
+# dependency build scripts blocked unless allow-listed.
+trustPolicy: no-downgrade
+# Reviewed exceptions only, each pinned to one version:
+# - chokidar@4.0.3 (via svelte-check): published 2024-12-18 by its maintainer, gitHead matches the
+#   GitHub tag; it simply lacks provenance. pnpm's own docs cite it as the example false positive.
+trustPolicyExclude:
+  - 'chokidar@4.0.3'

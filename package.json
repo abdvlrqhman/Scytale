@@ -1,0 +1,14 @@
+{
+  "name": "scytale",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "packageManager": "pnpm@11.15.0",
+  "scripts": {
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "check": "pnpm -r --if-present run check",
+    "test": "pnpm -r --if-present run test"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

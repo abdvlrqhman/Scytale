@@ -1,0 +1,6 @@
+# LF everywhere: reproducible builds must produce identical bytes on Windows, macOS and Linux.
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.icns binary
+*.wasm binary
