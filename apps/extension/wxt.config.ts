@@ -4,6 +4,26 @@ import { defineConfig } from 'wxt';
 // popup or presses the shortcut on a page. See docs/ARCHITECTURE.md and docs/THREAT_MODEL.md.
 export default defineConfig({
   modules: ['@wxt-dev/module-svelte'],
+  zip: {
+    artifactTemplate: 'scytale-{{version}}-{{browser}}.zip',
+    sourcesTemplate: 'scytale-{{version}}-sources.zip',
+    // Firefox reviewers rebuild from source, so the source zip is the whole monorepo (the Rust core
+    // included). Build steps: apps/extension/BUILDING.md.
+    sourcesRoot: '../..',
+    excludeSources: [
+      '**/node_modules/**',
+      '**/target/**',
+      '**/.output/**',
+      '**/.wxt/**',
+      '**/dist/**',
+      '**/pkg/**',
+      '**/test-results/**',
+      'apps/desktop/src-tauri/icons/**',
+      'apps/desktop/src-tauri/gen/**',
+      'docs/images/**',
+      '.git/**',
+    ],
+  },
   manifest: ({ browser, mode }) => ({
     name: 'Scytale',
     description: 'A free, open-source password manager with no server. Your vault is encrypted on your device.',
