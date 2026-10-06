@@ -35,6 +35,9 @@ and the Secret Key.
   stores it in the OS credential store instead.
 - **Key zeroization in the extension.** JavaScript and WASM cannot guarantee that key material is wiped
   from memory. The desktop app (Rust) zeroizes keys on lock.
+- **Sync credentials at rest.** A WebDAV app password or a Dropbox refresh token is stored with the
+  device's local data (extension storage; the desktop app's data folder). It grants access only to
+  ciphertext, and can be revoked at the provider at any time.
 - **First sync on a new device** trusts whatever is currently in storage. The rollback guard only protects
   devices that have already synced.
 - **Metadata** visible to the storage provider: number of devices, file sizes (padded) and modification

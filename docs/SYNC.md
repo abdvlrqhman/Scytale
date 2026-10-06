@@ -1,6 +1,6 @@
 # Sync
 
-Status: **merge and file formats implemented** (`crates/core`); provider adapters pending.
+Status: **implemented.** WebDAV (both apps), a synced folder (desktop) and Dropbox (enabled by an app key at build time). Google Drive and OneDrive are not built yet.
 
 Scytale has no server. Devices sync through storage the user already owns: WebDAV (Nextcloud and
 others), Dropbox, OneDrive, Google Drive, or a synced folder (Syncthing, iCloud Drive, a cloud provider's

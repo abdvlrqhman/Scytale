@@ -27,6 +27,8 @@
   const hashParts = initialHash.split('-');
 
   let theme: Theme = $state(hashParts.includes('light') ? 'light' : 'dark');
+  // "frameonly": just the screen, edge to edge (used to compose the README hero image).
+  const frameOnly = hashParts.includes('frameonly');
   let screen: Screen = $state(screens.some((s) => s.value === hashParts[0]) ? (hashParts[0] as Screen) : 'popup');
   let toast: string | null = $state(null);
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -99,7 +101,8 @@
   ];
 </script>
 
-<div class="page">
+<div class="page" class:bare={frameOnly}>
+  {#if !frameOnly}
   <header class="bar">
     <div class="titles">
       <h1>Scytale: Bronze</h1>
@@ -118,6 +121,7 @@
       />
     </div>
   </header>
+  {/if}
 
   {#if screen === 'popup'}
     <div class="frame popup">
@@ -277,6 +281,21 @@
 </div>
 
 <style>
+  .bare {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  .bare .frame {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .bare .desktop {
+    height: 100vh;
+  }
+  .bare .desk-scroll {
+    padding: 0;
+  }
   .page {
     min-height: 100vh;
     padding-block: 24px 48px;
