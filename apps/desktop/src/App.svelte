@@ -27,6 +27,7 @@
     Strength,
     SyncInfo,
   } from '@scytale/ui/types';
+  import { getVersion } from '@tauri-apps/api/app';
   import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
   import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -52,6 +53,7 @@
 
   const appWindow = getCurrentWindow();
   let platform: Platform = $state('windows');
+  let appVersion = $state('');
   let maximized = $state(false);
   let svc: VaultService | undefined;
 
@@ -146,6 +148,7 @@
 
   async function boot() {
     platform = await invoke<Platform>('platform');
+    appVersion = await getVersion();
     svc = new VaultService(new TauriEngine(), new DesktopStore(), new MemoryStore(), `Scytale for ${platformName()}`, {
       remoteFor,
       onChange: () => scheduleSync(2000),
@@ -545,7 +548,7 @@
             {storageName}
             {sync}
             {devices}
-            version="1.0.0"
+            version={appVersion}
             onsyncnow={() => runSync().catch(fail)}
             onchangestorage={() => {
               section = 'all';
