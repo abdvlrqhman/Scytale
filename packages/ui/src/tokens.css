@@ -1,0 +1,122 @@
+/* Scytale design tokens: "Bronze". Dark is the default; light is opt-in via [data-theme="light"].
+   Fill colors and text colors are separate tokens on purpose: bronze is a fill in both themes,
+   but bronze *text* needs a darker value on light grounds to stay above 4.5:1. */
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #1c1713; /* leather */
+  --bg-sunken: #181410;
+  --surface: #231d18;
+  --surface-raised: #2a231c;
+  --surface-hover: #2e251d;
+  --line: #3a3129;
+  --line-soft: #2e261f;
+
+  --ink: #efe7da; /* bone */
+  --ink-soft: #dcd2c1;
+  --muted: #b3a691; /* 7.3:1 on --bg */
+  --placeholder: #9c907c;
+
+  --accent: #c9974f; /* bronze fill */
+  --on-accent: #1c1713; /* 7:1 on --accent */
+  --accent-text: #e2be86; /* bronze as text/links */
+  --accent-soft: #3a2e22;
+
+  --rod: #3a2e22;
+  --strip: #8c6a3e;
+  --strip-ink: #f3e6cc;
+
+  --ok: #6fae98; /* patina */
+  --warn: #e3b25c;
+  --danger: #e58a7a;
+  --danger-soft: #3b231e;
+
+  --tint-1: #e7a99a;
+  --tint-2: #e9bf86;
+  --tint-3: #9cc9b9;
+  --tint-4: #d9a9c4;
+  --tint-5: #a9c99c;
+  --tint-6: #b8b9e3;
+  --tint-bg: #2f2620;
+
+  --shadow-pop: 0 18px 48px rgb(0 0 0 / 0.45);
+  --scrollbar: #43382e;
+  --scrollbar-hover: #8c6a3e;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #efeae2; /* limestone */
+  --bg-sunken: #e7e1d7;
+  --surface: #faf7f2;
+  --surface-raised: #ffffff;
+  --surface-hover: #f3eee6;
+  --line: #d9cfc1;
+  --line-soft: #e5ddd1;
+
+  --ink: #231c16;
+  --ink-soft: #3d332a;
+  --muted: #6b5e4e; /* 5.3:1 on --bg */
+  --placeholder: #7a6d5b;
+
+  --accent: #c9974f;
+  --on-accent: #1c1713;
+  --accent-text: #8a5a1e; /* 5.3:1 on --surface */
+  --accent-soft: #eadcc6;
+
+  --rod: #d9c8ae;
+  --strip: #8c6a3e;
+  --strip-ink: #fbf3e3;
+
+  --ok: #2f7a62;
+  --warn: #8a5a12;
+  --danger: #b4432f;
+  --danger-soft: #f7e1db;
+
+  --tint-1: #8a3b2e;
+  --tint-2: #7a4a0c;
+  --tint-3: #2c5a4b;
+  --tint-4: #6e2f55;
+  --tint-5: #3b5a2c;
+  --tint-6: #3b3d7a;
+  --tint-bg: #e9dfd0;
+
+  --shadow-pop: 0 18px 48px rgb(60 40 20 / 0.18);
+  --scrollbar: #d2c6b5;
+  --scrollbar-hover: #a57a44;
+}
+
+:root {
+  /* Radius scale: rounder than the mockup, one scale everywhere. */
+  --r-sm: 10px; /* keycaps, tiny tags */
+  --r-md: 16px; /* buttons, inputs, list rows */
+  --r-lg: 22px; /* cards */
+  --r-xl: 28px; /* panels, windows */
+  --r-pill: 999px; /* chips, toggles */
+
+  --font-display: 'Marcellus', 'Cormorant Garamond', Georgia, serif;
+  --font-ui: 'Figtree Variable', 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 15px;
+  --text-xl: 17px;
+  --text-2xl: 22px;
+  --text-3xl: 30px;
+  --text-4xl: 38px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --hit: 44px; /* minimum touch target */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
