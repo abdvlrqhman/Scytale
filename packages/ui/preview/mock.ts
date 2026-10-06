@@ -78,7 +78,14 @@ export function rate(pw: string): Strength {
 
 // A small sample; the real generator uses the EFF list in the Rust core.
 const words = 'harbor velvet lantern orbit meadow copper thistle quarry falcon ember walnut glacier pebble saffron tundra marble cobalt juniper canyon ribbon lagoon cinder maple sparrow tidal hollow summit ferret violet bramble'.split(' ');
-const pick = <T,>(xs: T[]) => xs[crypto.getRandomValues(new Uint32Array(1))[0]! % xs.length]!;
+// Uniform choice (rejection sampling, like the real generator in the Rust core).
+const pick = <T,>(xs: T[]): T => {
+  const limit = Math.floor(2 ** 32 / xs.length) * xs.length;
+  for (;;) {
+    const v = crypto.getRandomValues(new Uint32Array(1))[0]!;
+    if (v < limit) return xs[v % xs.length]!;
+  }
+};
 
 export function suggestPassphrase(): string {
   return Array.from({ length: 4 }, () => pick(words)).join('-');

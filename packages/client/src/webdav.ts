@@ -82,17 +82,48 @@ export class WebDavStore implements RemoteStore {
 }
 
 /**
- * Minimal DAV:multistatus reader. Regex, not DOMParser, because Chrome's extension service worker
- * has no DOMParser. Namespace prefixes vary by server (d:, D:, none), so they are ignored.
+ * Minimal DAV:multistatus reader. Not DOMParser, because Chrome's extension service worker has none.
+ * One linear pass over the tags (no backtracking regex), since the reply comes from a server the
+ * user chose but we do not trust. Namespace prefixes vary by server (d:, D:, none) and are ignored.
  */
 export function parseMultistatus(xml: string): { href: string; etag: string; collection: boolean }[] {
-  const tag = (name: string) => new RegExp(`<(?:[\\w-]+:)?${name}(?:\\s[^>]*)?>([\\s\\S]*?)</(?:[\\w-]+:)?${name}>`, 'i');
-  const responses = xml.match(/<(?:[\w-]+:)?response(?:\s[^>]*)?>[\s\S]*?<\/(?:[\w-]+:)?response>/gi) ?? [];
-  return responses.map((r) => {
-    const xmlDecode = (s: string) => s.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-    const href = xmlDecode(tag('href').exec(r)?.[1]?.trim() ?? '');
-    const etag = xmlDecode(tag('getetag').exec(r)?.[1]?.trim() ?? '');
-    const collection = /<(?:[\w-]+:)?collection\s*\/?>/i.test(tag('resourcetype').exec(r)?.[1] ?? '');
-    return { href, etag, collection };
+  const out: { href: string; etag: string; collection: boolean }[] = [];
+  const tags = /<(\/?)(?:[\w-]+:)?([\w-]+)([^<>]*)>/g;
+  let current: { href: string; etag: string; collection: boolean } | null = null;
+  let capture: 'href' | 'getetag' | null = null;
+  let textStart = 0;
+  let inResourceType = false;
+  for (let m = tags.exec(xml); m; m = tags.exec(xml)) {
+    const [, closing, rawName = '', rest = ''] = m;
+    const name = rawName.toLowerCase();
+    if (!closing) {
+      const selfClosing = rest.endsWith('/');
+      if (name === 'response') current = { href: '', etag: '', collection: false };
+      else if (current && (name === 'href' || name === 'getetag') && !selfClosing) {
+        capture = name;
+        textStart = tags.lastIndex;
+      } else if (current && name === 'resourcetype') inResourceType = !selfClosing;
+      else if (current && name === 'collection' && inResourceType) current.collection = true;
+    } else if (current && capture === name) {
+      const text = xmlDecode(xml.slice(textStart, m.index).trim());
+      if (name === 'href') current.href = text;
+      else current.etag = text;
+      capture = null;
+    } else if (name === 'resourcetype') inResourceType = false;
+    else if (name === 'response' && current) {
+      out.push(current);
+      current = null;
+    }
+  }
+  return out;
+}
+
+/** Decodes XML entities in one pass, so "&amp;lt;" becomes "&lt;", not "<". */
+function xmlDecode(s: string): string {
+  const named: Record<string, string> = { quot: '"', amp: '&', lt: '<', gt: '>', apos: "'" };
+  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, ent: string) => {
+    if (ent[0] !== '#') return named[ent.toLowerCase()] ?? whole;
+    const code = ent[1] === 'x' || ent[1] === 'X' ? parseInt(ent.slice(2), 16) : parseInt(ent.slice(1), 10);
+    return Number.isFinite(code) && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
   });
 }
